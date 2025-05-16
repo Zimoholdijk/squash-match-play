@@ -53,7 +53,7 @@ const OfferGame = () => {
     setCurrentStep('time');
   };
 
-  const handleTimeSubmit = (date: Date, time: string, duration: string, location: string) => {
+  const handleTimeSubmit = (selectedSlots: Date[]) => {
     // In a real app, this would generate a unique ID and save the game details
     const dummyGameId = 'game_' + Math.random().toString(36).substr(2, 9);
     const link = `${window.location.origin}/invite/${dummyGameId}`;

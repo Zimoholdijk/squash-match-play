@@ -1,49 +1,69 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { format, addDays, startOfWeek, setHours, setMinutes, isBefore } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Props {
-  onSubmit: (date: Date, time: string, duration: string, location: string) => void;
+  onSubmit: (selectedSlots: Date[]) => void;
 }
 
 const TimeSelector: React.FC<Props> = ({ onSubmit }) => {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedTime, setSelectedTime] = useState('');
-  const [duration, setDuration] = useState('60');
-  const [location, setLocation] = useState('');
   const { toast } = useToast();
+  const [selectedSlots, setSelectedSlots] = useState<Date[]>([]);
+  
+  // Generate time slots for the week
+  const startDate = startOfWeek(new Date(), { weekStartsOn: 1 }); // Start from Monday
+  const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  
+  const timeSlots = Array.from({ length: 32 }, (_, i) => {
+    const hour = Math.floor(i / 2) + 6; // Start at 6 AM
+    const minutes = (i % 2) * 30; // Alternate between 0 and 30 minutes
+    return { hour, minutes };
+  });
+
+  const isTimeSlotSelectable = (date: Date) => {
+    const now = new Date();
+    return !isBefore(date, now);
+  };
+
+  const toggleTimeSlot = (day: Date, hour: number, minutes: number) => {
+    const slotTime = setMinutes(setHours(day, hour), minutes);
+    
+    if (!isTimeSlotSelectable(slotTime)) {
+      toast({
+        title: "Cannot select past time",
+        description: "Please select a future time slot.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedSlots(prev => {
+      const slotExists = prev.some(slot => 
+        slot.getTime() === slotTime.getTime()
+      );
+      
+      if (slotExists) {
+        return prev.filter(slot => slot.getTime() !== slotTime.getTime());
+      } else {
+        return [...prev, slotTime].sort((a, b) => a.getTime() - b.getTime());
+      }
+    });
+  };
 
   const handleSubmit = () => {
-    if (!selectedDate) {
+    if (selectedSlots.length === 0) {
       toast({
-        title: "Please select a date",
+        title: "No time slots selected",
+        description: "Please select at least one time slot.",
         variant: "destructive",
       });
       return;
     }
 
-    if (!selectedTime) {
-      toast({
-        title: "Please select a time",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!location) {
-      toast({
-        title: "Please enter a location",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    onSubmit(selectedDate, selectedTime, duration, location);
+    onSubmit(selectedSlots);
   };
 
   return (
@@ -51,74 +71,89 @@ const TimeSelector: React.FC<Props> = ({ onSubmit }) => {
       <CardContent className="pt-6">
         <div className="space-y-6">
           <div>
-            <h2 className="text-lg font-medium mb-2">Select Game Time</h2>
+            <h2 className="text-lg font-medium mb-2">Select Available Times</h2>
             <p className="text-sm text-gray-600">
-              Choose when and where you'd like to play.
+              Click on multiple time slots to suggest different options for your partner.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label className="mb-2 block">Select Date</Label>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="border rounded-md"
-                disabled={(date) => date < new Date()}
-              />
-            </div>
+          <ScrollArea className="h-[500px] pr-4">
+            <div className="grid grid-cols-8 gap-1">
+              {/* Time column */}
+              <div className="col-span-1">
+                <div className="h-10"></div> {/* Header spacer */}
+                {timeSlots.map(({ hour, minutes }, index) => (
+                  <div 
+                    key={index}
+                    className="h-8 flex items-center justify-end pr-2 text-xs text-gray-500"
+                  >
+                    {format(setMinutes(setHours(new Date(), hour), minutes), 'h:mm a')}
+                  </div>
+                ))}
+              </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="time">Select Time</Label>
-                <Select value={selectedTime} onValueChange={setSelectedTime}>
-                  <SelectTrigger id="time">
-                    <SelectValue placeholder="Select time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 13 }, (_, i) => i + 8).map((hour) => (
-                      <SelectItem key={hour} value={`${hour}:00`}>
-                        {hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`}
-                      </SelectItem>
+              {/* Days columns */}
+              {days.map((day, dayIndex) => (
+                <div key={dayIndex} className="col-span-1">
+                  <div className="h-10 flex flex-col items-center justify-center text-center">
+                    <div className="text-sm font-medium">
+                      {format(day, 'EEE')}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {format(day, 'MMM d')}
+                    </div>
+                  </div>
+
+                  {timeSlots.map(({ hour, minutes }, timeIndex) => {
+                    const slotTime = setMinutes(setHours(day, hour), minutes);
+                    const isSelected = selectedSlots.some(
+                      slot => slot.getTime() === slotTime.getTime()
+                    );
+                    const isSelectable = isTimeSlotSelectable(slotTime);
+
+                    return (
+                      <button
+                        key={`${dayIndex}-${timeIndex}`}
+                        className={`
+                          w-full h-8 border border-gray-100 transition-colors
+                          ${isSelected ? 'bg-squash-primary/20 border-squash-primary' : 'hover:bg-gray-50'}
+                          ${!isSelectable ? 'bg-gray-100 cursor-not-allowed' : 'cursor-pointer'}
+                        `}
+                        onClick={() => toggleTimeSlot(day, hour, minutes)}
+                        disabled={!isSelectable}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              {selectedSlots.length === 0 ? (
+                <p>No time slots selected</p>
+              ) : (
+                <div>
+                  <p className="font-medium mb-2">Selected times:</p>
+                  <ul className="space-y-1">
+                    {selectedSlots.map((slot, index) => (
+                      <li key={index}>
+                        {format(slot, 'EEEE, MMMM d, h:mm a')}
+                      </li>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration</Label>
-                <Select value={duration} onValueChange={setDuration}>
-                  <SelectTrigger id="duration">
-                    <SelectValue placeholder="Select duration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">30 minutes</SelectItem>
-                    <SelectItem value="60">1 hour</SelectItem>
-                    <SelectItem value="90">1.5 hours</SelectItem>
-                    <SelectItem value="120">2 hours</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Enter court location"
-                />
-              </div>
+                  </ul>
+                </div>
+              )}
             </div>
-          </div>
 
-          <Button
-            className="w-full bg-squash-primary hover:bg-squash-primary/90"
-            onClick={handleSubmit}
-          >
-            Submit
-          </Button>
+            <Button
+              className="w-full bg-squash-primary hover:bg-squash-primary/90"
+              onClick={handleSubmit}
+            >
+              Submit Selected Times
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
