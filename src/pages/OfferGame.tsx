@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/components/ui/use-toast';
 import { useUser } from '@/contexts/UserContext';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Copy, Check } from 'lucide-react';
 
-type Step = 'initial' | 'open-match-type' | 'specific-person' | 'specific-time' | 'availability';
+type Step = 'initial' | 'open-match-type' | 'specific-person' | 'specific-time' | 'availability' | 'invitation-created';
 
 const OfferGame = () => {
   const navigate = useNavigate();
@@ -31,9 +30,20 @@ const OfferGame = () => {
   const [duration, setDuration] = useState('60');
   const [location, setLocation] = useState('');
   const [specificPerson, setSpecificPerson] = useState('');
+  const [invitationLink, setInvitationLink] = useState('');
+  const [copied, setCopied] = useState(false);
   
   const handleBack = () => {
-    if (currentStep === 'open-match-type') {
+    if (currentStep === 'invitation-created') {
+      // If on invitation created screen, go back to the form screen that created it
+      if (matchType === 'open' && matchMethod === 'specific-time') {
+        setCurrentStep('specific-time');
+      } else if (matchType === 'specific' && specificMatchType === 'specific-time') {
+        setCurrentStep('specific-time');
+      } else if (matchType === 'specific' && specificMatchType === 'availability') {
+        setCurrentStep('specific-person');
+      }
+    } else if (currentStep === 'open-match-type') {
       setCurrentStep('initial');
     } else if (currentStep === 'specific-person') {
       setCurrentStep('initial');
@@ -86,15 +96,16 @@ const OfferGame = () => {
   const generateShareableLink = () => {
     // In a real implementation, this would generate a unique ID and save the game details
     const dummyGameId = 'game_' + Math.random().toString(36).substr(2, 9);
+    const link = `${window.location.origin}/invite/${dummyGameId}`;
+    
+    setInvitationLink(link);
+    setCurrentStep('invitation-created');
     
     // Display success message with the link
     toast({
       title: "Game offer created!",
-      description: "Share this link with your friend to invite them to play.",
+      description: "Your invitation link is ready to share.",
     });
-    
-    // For demo purposes, we'll navigate to a fake "game invite" page
-    navigate(`/invite/${dummyGameId}`);
   };
   
   const handleSystemMatch = () => {
@@ -108,14 +119,17 @@ const OfferGame = () => {
   };
   
   const handleShareAvailability = () => {
-    toast({
-      title: "Availability link generated",
-      description: "A link with your availability has been created to share with " + specificPerson,
-    });
-    
     // In a real implementation, this would generate a unique ID and save availability details
     const availabilityId = 'avail_' + Math.random().toString(36).substr(2, 9);
-    navigate(`/invite/${availabilityId}`);
+    const link = `${window.location.origin}/invite/${availabilityId}`;
+    
+    setInvitationLink(link);
+    setCurrentStep('invitation-created');
+    
+    toast({
+      title: "Availability link generated",
+      description: "A link with your availability has been created to share",
+    });
   };
   
   const handleSpecificTimeSubmit = () => {
@@ -146,9 +160,65 @@ const OfferGame = () => {
     generateShareableLink();
   };
   
+  const copyInvitationLink = () => {
+    navigator.clipboard.writeText(invitationLink);
+    setCopied(true);
+    
+    toast({
+      title: "Link copied!",
+      description: "The invitation link has been copied to your clipboard.",
+    });
+    
+    // Reset the copied state after 2 seconds
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+  };
+  
   // UI Rendering based on current step
   const renderStepContent = () => {
     switch (currentStep) {
+      case 'invitation-created':
+        return (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-6">
+                <h2 className="text-lg font-medium">Your invitation is ready!</h2>
+                
+                <div className="space-y-4">
+                  <p className="text-muted-foreground">
+                    Share this link with {matchType === 'specific' ? specificPerson : 'potential players'}:
+                  </p>
+                  
+                  <div className="flex space-x-2">
+                    <Input 
+                      value={invitationLink}
+                      readOnly
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={copyInvitationLink}
+                      variant="outline"
+                      size="icon"
+                    >
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  <div className="pt-4">
+                    <Button
+                      onClick={() => navigate('/app/dashboard')}
+                      className="bg-squash-primary hover:bg-squash-primary/90"
+                    >
+                      Back to Dashboard
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+        
       case 'initial':
         return (
           <Card>
