@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				squash: {
+					primary: '#FF5722', // Orange
+					secondary: '#1E88E5', // Blue
+					success: '#4CAF50',
+					danger: '#F44336',
+					light: '#F5F5F5',
+					dark: '#212121'
 				}
 			},
 			borderRadius: {
@@ -84,11 +93,31 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'swipe-right': {
+					'0%': { transform: 'translateX(0) rotate(0)' },
+					'100%': { transform: 'translateX(150%) rotate(12deg)' }
+				},
+				'swipe-left': {
+					'0%': { transform: 'translateX(0) rotate(0)' },
+					'100%': { transform: 'translateX(-150%) rotate(-12deg)' }
+				},
+				'slide-in': {
+					'0%': { transform: 'translateY(100%)' },
+					'100%': { transform: 'translateY(0)' }
+				},
+				'fade-in': {
+					'0%': { opacity: '0' },
+					'100%': { opacity: '1' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'swipe-right': 'swipe-right 0.5s forwards ease-out',
+				'swipe-left': 'swipe-left 0.5s forwards ease-out',
+				'slide-in': 'slide-in 0.3s forwards ease-out',
+				'fade-in': 'fade-in 0.3s forwards ease-out'
 			}
 		}
 	},
