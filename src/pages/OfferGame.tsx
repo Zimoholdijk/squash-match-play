@@ -19,6 +19,7 @@ const OfferGame = () => {
   
   const [matchType, setMatchType] = useState<'open' | 'specific'>('open');
   const [matchMethod, setMatchMethod] = useState<'best-match' | 'specific-time'>('best-match');
+  const [specificMatchType, setSpecificMatchType] = useState<'availability' | 'specific-time'>('specific-time');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState('');
   const [duration, setDuration] = useState('60');
@@ -53,6 +54,18 @@ const OfferGame = () => {
     e.preventDefault();
     
     if (matchType === 'specific') {
+      if (specificMatchType === 'availability') {
+        toast({
+          title: "Availability link generated",
+          description: "A link with your availability has been created to share with " + specificPerson,
+        });
+        
+        // In a real implementation, this would generate a unique ID and save availability details
+        const availabilityId = 'avail_' + Math.random().toString(36).substr(2, 9);
+        navigate(`/invite/${availabilityId}`);
+        return;
+      }
+      
       generateShareableLink();
     } else {
       if (matchMethod === 'best-match') {
@@ -110,17 +123,38 @@ const OfferGame = () => {
                 </RadioGroup>
                 
                 {matchType === 'specific' && (
-                  <div className="pl-6 pt-2">
-                    <Label htmlFor="specific-person" className="mb-2 block text-sm">
-                      Enter their name or email
-                    </Label>
-                    <Input 
-                      id="specific-person" 
-                      placeholder="Name or email" 
-                      value={specificPerson}
-                      onChange={(e) => setSpecificPerson(e.target.value)}
-                      className="max-w-md"
-                    />
+                  <div className="pl-6 pt-2 space-y-4">
+                    <div>
+                      <Label htmlFor="specific-person" className="mb-2 block text-sm">
+                        Enter their name or email
+                      </Label>
+                      <Input 
+                        id="specific-person" 
+                        placeholder="Name or email" 
+                        value={specificPerson}
+                        onChange={(e) => setSpecificPerson(e.target.value)}
+                        className="max-w-md"
+                      />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <h3 className="text-md font-medium">How would you like to invite them?</h3>
+                      
+                      <RadioGroup 
+                        defaultValue="specific-time" 
+                        onValueChange={(value) => setSpecificMatchType(value as 'availability' | 'specific-time')} 
+                        className="space-y-3"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="availability" id="availability" />
+                          <Label htmlFor="availability">Send a link with my availability</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="specific-time" id="specific-time-option" />
+                          <Label htmlFor="specific-time-option">Suggest a specific date and time</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
                   </div>
                 )}
               </div>
@@ -142,7 +176,8 @@ const OfferGame = () => {
                 </div>
               )}
               
-              {(matchType === 'specific' || (matchType === 'open' && matchMethod === 'specific-time')) && (
+              {((matchType === 'specific' && specificMatchType === 'specific-time') || 
+                 (matchType === 'open' && matchMethod === 'specific-time')) && (
                 <div className="space-y-4 pt-2">
                   <div className="space-y-3">
                     <h2 className="text-lg font-medium">When and where do you want to play?</h2>
@@ -229,8 +264,9 @@ const OfferGame = () => {
             type="submit"
             className="bg-squash-primary hover:bg-squash-primary/90"
           >
-            {matchType === 'specific' ? 'Generate Invite Link' : 
-             matchMethod === 'best-match' ? 'Find Best Match' : 'Create Game Offer'}
+            {matchType === 'specific' 
+              ? (specificMatchType === 'availability' ? 'Share Availability' : 'Generate Invite Link') 
+              : (matchMethod === 'best-match' ? 'Find Best Match' : 'Create Game Offer')}
           </Button>
         </div>
       </form>
