@@ -1,443 +1,107 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { useToast } from '@/components/ui/use-toast';
-import { useUser } from '@/contexts/UserContext';
-import { ChevronLeft, Copy, Check } from 'lucide-react';
 
-type Step = 'initial' | 'open-match-type' | 'specific-person' | 'specific-time' | 'availability' | 'invitation-created';
+import InitialChoice from '@/components/offer-game/InitialChoice';
+import AvailabilitySelector from '@/components/offer-game/AvailabilitySelector';
+import PartnerSelector from '@/components/offer-game/PartnerSelector';
+import TimeSelector from '@/components/offer-game/TimeSelector';
+import SuccessScreen from '@/components/offer-game/SuccessScreen';
+
+type Step = 'initial' | 'availability' | 'partner' | 'time' | 'success';
 
 const OfferGame = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { user } = useUser();
-  
-  // Steps control
   const [currentStep, setCurrentStep] = useState<Step>('initial');
-  
-  // Form state
   const [matchType, setMatchType] = useState<'open' | 'specific'>('open');
-  const [matchMethod, setMatchMethod] = useState<'best-match' | 'specific-time'>('best-match');
-  const [specificMatchType, setSpecificMatchType] = useState<'availability' | 'specific-time'>('specific-time');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedTime, setSelectedTime] = useState('');
-  const [duration, setDuration] = useState('60');
-  const [location, setLocation] = useState('');
-  const [specificPerson, setSpecificPerson] = useState('');
-  const [invitationLink, setInvitationLink] = useState('');
-  const [copied, setCopied] = useState(false);
-  
+  const [inviteLink, setInviteLink] = useState<string>('');
+  const [partnerName, setPartnerName] = useState('');
+
   const handleBack = () => {
-    if (currentStep === 'invitation-created') {
-      // If on invitation created screen, go back to the form screen that created it
-      if (matchType === 'open' && matchMethod === 'specific-time') {
-        setCurrentStep('specific-time');
-      } else if (matchType === 'specific' && specificMatchType === 'specific-time') {
-        setCurrentStep('specific-time');
-      } else if (matchType === 'specific' && specificMatchType === 'availability') {
-        setCurrentStep('specific-person');
-      }
-    } else if (currentStep === 'open-match-type') {
-      setCurrentStep('initial');
-    } else if (currentStep === 'specific-person') {
-      setCurrentStep('initial');
-    } else if (currentStep === 'specific-time') {
-      if (matchType === 'specific') {
-        setCurrentStep('specific-person');
-      } else {
-        setCurrentStep('open-match-type');
-      }
-    } else if (currentStep === 'availability') {
-      setCurrentStep('specific-person');
+    switch (currentStep) {
+      case 'availability':
+      case 'partner':
+        setCurrentStep('initial');
+        break;
+      case 'time':
+        setCurrentStep('partner');
+        break;
+      case 'success':
+        if (matchType === 'open') {
+          setCurrentStep('availability');
+        } else {
+          setCurrentStep('time');
+        }
+        break;
+      default:
+        break;
     }
   };
-  
+
   const handleInitialChoice = (type: 'open' | 'specific') => {
     setMatchType(type);
-    if (type === 'open') {
-      setCurrentStep('open-match-type');
-    } else {
-      setCurrentStep('specific-person');
-    }
+    setCurrentStep(type === 'open' ? 'availability' : 'partner');
   };
-  
-  const handleOpenMatchChoice = (method: 'best-match' | 'specific-time') => {
-    setMatchMethod(method);
-    if (method === 'specific-time') {
-      setCurrentStep('specific-time');
-    } else {
-      handleSystemMatch();
-    }
+
+  const handleAvailabilitySubmit = () => {
+    setCurrentStep('success');
   };
-  
-  const handleSpecificPersonNext = () => {
-    if (!specificPerson.trim()) {
-      toast({
-        title: "Name required",
-        description: "Please enter a name or email for the person you want to play with",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (specificMatchType === 'specific-time') {
-      setCurrentStep('specific-time');
-    } else {
-      handleShareAvailability();
-    }
+
+  const handlePartnerSelect = (name: string, email: string) => {
+    setPartnerName(name);
+    setCurrentStep('time');
   };
-  
-  const generateShareableLink = () => {
-    // In a real implementation, this would generate a unique ID and save the game details
+
+  const handleTimeSubmit = (date: Date, time: string, duration: string, location: string) => {
+    // In a real app, this would generate a unique ID and save the game details
     const dummyGameId = 'game_' + Math.random().toString(36).substr(2, 9);
     const link = `${window.location.origin}/invite/${dummyGameId}`;
-    
-    setInvitationLink(link);
-    setCurrentStep('invitation-created');
-    
-    // Display success message with the link
-    toast({
-      title: "Game offer created!",
-      description: "Your invitation link is ready to share.",
-    });
+    setInviteLink(link);
+    setCurrentStep('success');
   };
-  
-  const handleSystemMatch = () => {
-    toast({
-      title: "Finding the best match...",
-      description: "We'll notify you when we find a suitable match based on your preferences.",
-    });
-    
-    // Navigate back to dashboard
-    navigate('/app/dashboard');
-  };
-  
-  const handleShareAvailability = () => {
-    // In a real implementation, this would generate a unique ID and save availability details
-    const availabilityId = 'avail_' + Math.random().toString(36).substr(2, 9);
-    const link = `${window.location.origin}/invite/${availabilityId}`;
-    
-    setInvitationLink(link);
-    setCurrentStep('invitation-created');
-    
-    toast({
-      title: "Availability link generated",
-      description: "A link with your availability has been created to share",
-    });
-  };
-  
-  const handleSpecificTimeSubmit = () => {
-    if (!selectedDate) {
-      toast({
-        title: "Please select a date",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!selectedTime) {
-      toast({
-        title: "Please select a time",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!location) {
-      toast({
-        title: "Please enter a location",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    generateShareableLink();
-  };
-  
-  const copyInvitationLink = () => {
-    navigator.clipboard.writeText(invitationLink);
-    setCopied(true);
-    
-    toast({
-      title: "Link copied!",
-      description: "The invitation link has been copied to your clipboard.",
-    });
-    
-    // Reset the copied state after 2 seconds
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
-  };
-  
-  // UI Rendering based on current step
-  const renderStepContent = () => {
+
+  const renderStep = () => {
     switch (currentStep) {
-      case 'invitation-created':
-        return (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <h2 className="text-lg font-medium">Your invitation is ready!</h2>
-                
-                <div className="space-y-4">
-                  <p className="text-muted-foreground">
-                    Share this link with {matchType === 'specific' ? specificPerson : 'potential players'}:
-                  </p>
-                  
-                  <div className="flex space-x-2">
-                    <Input 
-                      value={invitationLink}
-                      readOnly
-                      className="flex-1"
-                    />
-                    <Button
-                      onClick={copyInvitationLink}
-                      variant="outline"
-                      size="icon"
-                    >
-                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  
-                  <div className="pt-4">
-                    <Button
-                      onClick={() => navigate('/app/dashboard')}
-                      className="bg-squash-primary hover:bg-squash-primary/90"
-                    >
-                      Back to Dashboard
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-        
       case 'initial':
+        return <InitialChoice onSelect={handleInitialChoice} />;
+      case 'availability':
+        return <AvailabilitySelector onSubmit={handleAvailabilitySubmit} />;
+      case 'partner':
+        return <PartnerSelector onNext={handlePartnerSelect} />;
+      case 'time':
+        return <TimeSelector onSubmit={handleTimeSubmit} />;
+      case 'success':
         return (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <h2 className="text-lg font-medium">Who do you want to play with?</h2>
-                
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <Button 
-                    onClick={() => handleInitialChoice('open')} 
-                    variant="outline" 
-                    className="h-auto flex flex-col items-center justify-center p-6 space-y-3 text-center"
-                  >
-                    <div className="text-xl font-medium">Open to Anyone</div>
-                    <p className="text-muted-foreground">Find a match based on skill level and availability</p>
-                  </Button>
-                  
-                  <Button 
-                    onClick={() => handleInitialChoice('specific')} 
-                    variant="outline"
-                    className="h-auto flex flex-col items-center justify-center p-6 space-y-3 text-center"
-                  >
-                    <div className="text-xl font-medium">Specific Person</div>
-                    <p className="text-muted-foreground">Invite someone you know to play a match</p>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <SuccessScreen
+            type={matchType}
+            inviteLink={inviteLink}
+            onFinish={() => navigate('/app/dashboard')}
+          />
         );
-        
-      case 'open-match-type':
-        return (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <h2 className="text-lg font-medium">How would you like to be matched?</h2>
-                
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <Button 
-                    onClick={() => handleOpenMatchChoice('best-match')} 
-                    variant="outline" 
-                    className="h-auto flex flex-col items-center justify-center p-6 space-y-3 text-center"
-                  >
-                    <div className="text-xl font-medium">Find Best Match</div>
-                    <p className="text-muted-foreground">The system will match you with the best player based on your availability</p>
-                  </Button>
-                  
-                  <Button 
-                    onClick={() => handleOpenMatchChoice('specific-time')} 
-                    variant="outline"
-                    className="h-auto flex flex-col items-center justify-center p-6 space-y-3 text-center"
-                  >
-                    <div className="text-xl font-medium">Specific Time</div>
-                    <p className="text-muted-foreground">I have a specific date and time in mind</p>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-        
-      case 'specific-person':
-        return (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <h2 className="text-lg font-medium">Who would you like to play with?</h2>
-                
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="specific-person" className="mb-2 block">
-                      Enter their name or email
-                    </Label>
-                    <Input 
-                      id="specific-person" 
-                      placeholder="Name or email" 
-                      value={specificPerson}
-                      onChange={(e) => setSpecificPerson(e.target.value)}
-                      className="max-w-md"
-                    />
-                  </div>
-                  
-                  <div className="space-y-3 pt-4">
-                    <h3 className="text-md font-medium">How would you like to invite them?</h3>
-                    
-                    <RadioGroup 
-                      value={specificMatchType}
-                      onValueChange={(value) => setSpecificMatchType(value as 'availability' | 'specific-time')} 
-                      className="space-y-3"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="availability" id="availability" />
-                        <Label htmlFor="availability">Send a link with my availability</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="specific-time" id="specific-time-option" />
-                        <Label htmlFor="specific-time-option">Suggest a specific date and time</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                </div>
-                
-                <Button
-                  onClick={handleSpecificPersonNext}
-                  className="bg-squash-primary hover:bg-squash-primary/90 mt-4"
-                >
-                  {specificMatchType === 'availability' ? 'Share Availability' : 'Next'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-        
-      case 'specific-time':
-        return (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <h2 className="text-lg font-medium">When and where do you want to play?</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label className="mb-2 block">Select Date</Label>
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      className="border rounded-md"
-                      disabled={(date) => date < new Date()}
-                    />
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="time">Select Time</Label>
-                      <Select value={selectedTime} onValueChange={setSelectedTime}>
-                        <SelectTrigger id="time">
-                          <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="08:00">8:00 AM</SelectItem>
-                          <SelectItem value="09:00">9:00 AM</SelectItem>
-                          <SelectItem value="10:00">10:00 AM</SelectItem>
-                          <SelectItem value="11:00">11:00 AM</SelectItem>
-                          <SelectItem value="12:00">12:00 PM</SelectItem>
-                          <SelectItem value="13:00">1:00 PM</SelectItem>
-                          <SelectItem value="14:00">2:00 PM</SelectItem>
-                          <SelectItem value="15:00">3:00 PM</SelectItem>
-                          <SelectItem value="16:00">4:00 PM</SelectItem>
-                          <SelectItem value="17:00">5:00 PM</SelectItem>
-                          <SelectItem value="18:00">6:00 PM</SelectItem>
-                          <SelectItem value="19:00">7:00 PM</SelectItem>
-                          <SelectItem value="20:00">8:00 PM</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="duration">Duration</Label>
-                      <Select value={duration} onValueChange={setDuration}>
-                        <SelectTrigger id="duration">
-                          <SelectValue placeholder="Select duration" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="30">30 minutes</SelectItem>
-                          <SelectItem value="60">1 hour</SelectItem>
-                          <SelectItem value="90">1.5 hours</SelectItem>
-                          <SelectItem value="120">2 hours</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="location">Location</Label>
-                      <Input 
-                        id="location" 
-                        placeholder="Enter squash court location" 
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <Button
-                  onClick={handleSpecificTimeSubmit}
-                  className="bg-squash-primary hover:bg-squash-primary/90 mt-4"
-                >
-                  {matchType === 'specific' ? 'Generate Invite Link' : 'Create Game Offer'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-        
       default:
         return null;
     }
   };
-  
+
   return (
     <div className="space-y-6 pb-20">
       <div className="flex items-center mb-4">
         <h1 className="text-2xl font-bold">Offer a Game</h1>
       </div>
-      
+
       {currentStep !== 'initial' && (
-        <Button 
-          variant="ghost" 
-          onClick={handleBack} 
+        <Button
+          variant="ghost"
+          onClick={handleBack}
           className="mb-4 p-2 h-9"
         >
           <ChevronLeft className="mr-1 h-4 w-4" />
           Back
         </Button>
       )}
-      
-      {renderStepContent()}
+
+      {renderStep()}
     </div>
   );
 };
