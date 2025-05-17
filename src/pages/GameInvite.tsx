@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useUser } from '@/contexts/UserContext';
 import { Calendar } from '@/components/ui/calendar';
 import { Copy, Check } from 'lucide-react';
+import TimeSelector from '@/components/offer-game/TimeSelector';
 
 type InviteType = 'specific-time' | 'availability';
 
@@ -16,6 +17,7 @@ interface GameInviteData {
   date?: Date;
   time?: string;
   location?: string;
+  availableTimes?: Date[];
 }
 
 const GameInvite = () => {
@@ -26,6 +28,7 @@ const GameInvite = () => {
   const [inviteType, setInviteType] = useState<InviteType>('specific-time');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [copied, setCopied] = useState(false);
+  const [gameData, setGameData] = useState<GameInviteData | null>(null);
   
   // In a real app, this would fetch real data from the backend
   useEffect(() => {
@@ -37,6 +40,31 @@ const GameInvite = () => {
       // This would normally come from a database, but for now we'll determine from the ID format
       if (gameId.startsWith('avail_')) {
         setInviteType('availability');
+        
+        // Mock available times for demo purposes
+        const mockStartDate = new Date();
+        mockStartDate.setHours(0, 0, 0, 0);
+        
+        const availableTimes = [
+          new Date(mockStartDate.getTime() + (24 * 60 * 60 * 1000) + (10 * 60 * 60 * 1000)), // Tomorrow 10:00
+          new Date(mockStartDate.getTime() + (24 * 60 * 60 * 1000) + (14 * 60 * 60 * 1000)), // Tomorrow 14:00
+          new Date(mockStartDate.getTime() + (48 * 60 * 60 * 1000) + (17 * 60 * 60 * 1000)), // Day after tomorrow 17:00
+          new Date(mockStartDate.getTime() + (72 * 60 * 60 * 1000) + (18 * 60 * 60 * 1000)), // 3 days later 18:00
+        ];
+        
+        setGameData({
+          type: 'availability',
+          host: 'John Smith',
+          availableTimes
+        });
+      } else {
+        setGameData({
+          type: 'specific-time',
+          host: 'John Smith',
+          date: new Date(2025, 4, 24, 18, 0), // May 24, 2025, 6:00 PM
+          time: '6:00 PM',
+          location: 'Downtown Squash Club'
+        });
       }
     }
   }, [gameId, setPendingGameId]);
@@ -63,18 +91,10 @@ const GameInvite = () => {
     navigate('/');
   };
 
-  const handleSelectTimeSlot = () => {
-    if (!selectedDate) {
-      toast({
-        title: "Please select a date",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+  const handleConfirmTime = (selectedTime: Date) => {
     toast({
-      title: "Time selected!",
-      description: `You selected ${selectedDate.toDateString()}.`,
+      title: "Time confirmed!",
+      description: `You selected ${format(selectedTime, 'EEEE, MMMM d, h:mm a')}.`,
     });
     
     if (isAuthenticated) {
@@ -113,7 +133,7 @@ const GameInvite = () => {
           <div className="h-20 w-20 bg-gray-200 rounded-full flex items-center justify-center">
             <span className="text-3xl">J</span>
           </div>
-          <h2 className="mt-3 font-medium">John Smith</h2>
+          <h2 className="mt-3 font-medium">{gameData?.host || 'Player'}</h2>
           <p className="text-sm text-gray-500">⭐⭐⭐⭐</p>
         </div>
         
@@ -121,15 +141,17 @@ const GameInvite = () => {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Date</span>
-              <span className="text-sm font-medium">Friday, May 24, 2025</span>
+              <span className="text-sm font-medium">
+                {gameData?.date ? format(gameData.date, 'EEEE, MMMM d, yyyy') : 'Friday, May 24, 2025'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Time</span>
-              <span className="text-sm font-medium">6:00 PM</span>
+              <span className="text-sm font-medium">{gameData?.time || '6:00 PM'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Location</span>
-              <span className="text-sm font-medium">Downtown Squash Club</span>
+              <span className="text-sm font-medium">{gameData?.location || 'Downtown Squash Club'}</span>
             </div>
           </div>
         </div>
@@ -157,28 +179,20 @@ const GameInvite = () => {
       <CardContent className="space-y-4">
         <div className="text-center mb-6">
           <p className="text-gray-600">
-            John Smith has shared their availability with you. Please select a date that works for you.
+            {gameData?.host || 'Someone'} has shared their availability with you. Please select a time that works for you.
           </p>
         </div>
         
-        <div className="flex justify-center">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            className="border rounded-md p-3 pointer-events-auto"
-            disabled={(date) => date < new Date()}
+        {gameData?.availableTimes && (
+          <TimeSelector 
+            viewMode="confirm"
+            preSelectedSlots={gameData.availableTimes}
+            onSubmit={() => {}}
+            onConfirm={handleConfirmTime}
           />
-        </div>
+        )}
       </CardContent>
       <CardFooter className="flex flex-col space-y-3">
-        <Button 
-          className="w-full bg-squash-primary hover:bg-squash-primary/90" 
-          onClick={handleSelectTimeSlot}
-          disabled={!selectedDate}
-        >
-          Select This Time
-        </Button>
         <Button 
           variant="outline" 
           className="w-full" 
@@ -212,5 +226,7 @@ const GameInvite = () => {
     </div>
   );
 };
+
+import { format } from 'date-fns';
 
 export default GameInvite;

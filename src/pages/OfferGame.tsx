@@ -1,22 +1,25 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 
 import InitialChoice from '@/components/offer-game/InitialChoice';
-import AvailabilitySelector from '@/components/offer-game/AvailabilitySelector';
-import PartnerSelector from '@/components/offer-game/PartnerSelector';
 import TimeSelector from '@/components/offer-game/TimeSelector';
+import PartnerSelector from '@/components/offer-game/PartnerSelector';
 import SuccessScreen from '@/components/offer-game/SuccessScreen';
 
 type Step = 'initial' | 'availability' | 'partner' | 'time' | 'success';
 
 const OfferGame = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<Step>('initial');
   const [matchType, setMatchType] = useState<'open' | 'specific'>('open');
   const [inviteLink, setInviteLink] = useState<string>('');
   const [partnerName, setPartnerName] = useState('');
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<Date[]>([]);
 
   const handleBack = () => {
     switch (currentStep) {
@@ -44,7 +47,14 @@ const OfferGame = () => {
     setCurrentStep(type === 'open' ? 'availability' : 'partner');
   };
 
-  const handleAvailabilitySubmit = () => {
+  const handleAvailabilitySubmit = (selectedSlots: Date[]) => {
+    setSelectedTimeSlots(selectedSlots);
+    
+    // Generate a unique game ID for the availability-based invite
+    const dummyGameId = 'avail_' + Math.random().toString(36).substr(2, 9);
+    const link = `${window.location.origin}/invite/${dummyGameId}`;
+    setInviteLink(link);
+    
     setCurrentStep('success');
   };
 
@@ -54,10 +64,18 @@ const OfferGame = () => {
   };
 
   const handleTimeSubmit = (selectedSlots: Date[]) => {
+    setSelectedTimeSlots(selectedSlots);
+    
     // In a real app, this would generate a unique ID and save the game details
     const dummyGameId = 'game_' + Math.random().toString(36).substr(2, 9);
     const link = `${window.location.origin}/invite/${dummyGameId}`;
     setInviteLink(link);
+    
+    toast({
+      title: "Time slots saved",
+      description: `${selectedSlots.length} time slot(s) have been saved.`,
+    });
+    
     setCurrentStep('success');
   };
 
@@ -66,7 +84,7 @@ const OfferGame = () => {
       case 'initial':
         return <InitialChoice onSelect={handleInitialChoice} />;
       case 'availability':
-        return <AvailabilitySelector onSubmit={handleAvailabilitySubmit} />;
+        return <TimeSelector onSubmit={handleAvailabilitySubmit} />;
       case 'partner':
         return <PartnerSelector onNext={handlePartnerSelect} />;
       case 'time':
